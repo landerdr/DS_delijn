@@ -20,10 +20,14 @@ def render_401(errormsg):
 
 @app.route("/")
 def home():
-    return render_template("home.html")
+    lines = restful_api.GetAllLines().get()
+    return render_template("home.html", lines=lines)
 
-api.add_resource(restful_api.Test, "/api/1")
-api.add_resource(restful_api.Test2, "/api/2")
+api.add_resource(restful_api.GetAllLines, "/api/alllines")
+api.add_resource(restful_api.GetLineInfo, "/api/line/<int:entiteitnummer>/<int:lijnnummer>")
+api.add_resource(restful_api.GetEntityStops, "/api/entitystops/<int:entiteitnummer>")
+api.add_resource(restful_api.GetHandledStops, "/api/stops/<int:entiteitnummer>/<int:lijnnummer>/<string:richting>")
+api.add_resource(restful_api.GetEntityDirection, "/api/direction/<int:entiteitnummer>/<int:lijnnummer>")
 
 if __name__ == "__main__":
     app.env = "development"
