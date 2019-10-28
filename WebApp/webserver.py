@@ -1,5 +1,5 @@
 from flask import Flask, Blueprint, render_template, jsonify, session, request, redirect, json, abort, send_from_directory
-from flask_restful import reqparse, abort, Api, Resource
+from flask_restful import Api
 import restful_api
 
 app = Flask(__name__)
@@ -25,12 +25,12 @@ def home():
 
 api.add_resource(restful_api.GetAllLines, "/api/alllines")
 api.add_resource(restful_api.GetLineInfo, "/api/line/<int:entiteitnummer>/<int:lijnnummer>")
-api.add_resource(restful_api.GetEntityStops, "/api/entitystops/<int:entiteitnummer>")
 api.add_resource(restful_api.GetHandledStops, "/api/stops/<int:entiteitnummer>/<int:lijnnummer>/<string:richting>")
-api.add_resource(restful_api.GetEntityDirection, "/api/direction/<int:entiteitnummer>/<int:lijnnummer>")
+api.add_resource(restful_api.GetRealtimeInfo, "/api/real-time/<int:entiteitnummer>/<int:lijnnummer>/<string:richting>")
+api.add_resource(restful_api.GetRoute, "/api/routing/<int:entiteitnummer>/<int:lijnnummer>/<string:richting>")
 
 if __name__ == "__main__":
     app.env = "development"
     app.testing = True
-    
-    app.run(ssl_context="adhoc", port="5000")
+
+    app.run(port="5000") # ssl_context="adhoc"
