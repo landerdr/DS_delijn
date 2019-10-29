@@ -42,7 +42,7 @@ $(document).ready(function () {
             success: function (response) {
                 response["haltes"].forEach(halte => {
                     L.marker([halte.geoCoordinaat.latitude, halte.geoCoordinaat.longitude], {icon: stopIcon}).addTo(stopsLayer)
-                        .bindPopup(`Halte: ${halte.omschrijving}`);
+                        .bindPopup(`Halte: ${halte.omschrijving}\nWeer: ${halte.weather.weather[0].main}`);
                 });
                 response["busses"].forEach(bus => {
                     L.marker([bus.geoCoordinaat[1], bus.geoCoordinaat[0]], {icon: busIcon}).addTo(stopsLayer)
@@ -65,7 +65,7 @@ $(document).ready(function () {
             success: function (response) {
                 response["haltes"].forEach(halte => {
                     L.marker([halte.geoCoordinaat.latitude, halte.geoCoordinaat.longitude], {icon: stopIcon}).addTo(stopsLayer)
-                        .bindPopup(`Halte: ${halte.omschrijving}`);
+                        .bindPopup(`Halte: ${halte.omschrijving}\nWeer: ${halte.weather.weather[0].main}`);
                 });
                 response["busses"].forEach(bus => {
                     L.marker([bus.geoCoordinaat[1], bus.geoCoordinaat[0]], {icon: busIcon}).addTo(stopsLayer)
