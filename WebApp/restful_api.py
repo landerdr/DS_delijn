@@ -34,10 +34,18 @@ class GetAllLines(Resource):
     def get(self):
         return cache["all_lines"]
 
+print("Start caching all lines")
 cache["all_lines"] = GetAllLines()._getLines()
+print("Done caching!")
 
 
+class test(Resource):
+    def get(self, entiteitnummer, lijnnummer, richting):
+        return dl_request().get("/lijnen/%d/%d/lijnrichtingen/%s/dienstregelingen" %(entiteitnummer, lijnnummer, richting))
 
+class test2(Resource):
+    def get(self, entiteitnummer, lijnnummer, richting):
+        return dl_request().get("/lijnen/%d/%d/lijnrichtingen/%s/real-time" %(entiteitnummer, lijnnummer, richting))
 
 class GetLineInfo(Resource):
     def get(self, entiteitnummer, lijnnummer):
@@ -82,7 +90,7 @@ class GetRealtimeInfo(Resource):
                     time = datetime.datetime.strptime(waypoint["real-timeTijdstip"], "%Y-%m-%dT%H:%M:%S")
                 else:
                     time = datetime.datetime.strptime(waypoint["dienstregelingTijdstip"], "%Y-%m-%dT%H:%M:%S")
-                if time >= datetime.datetime.now():
+                if time > datetime.datetime.now():
                     break
                 prev = time
                 w_prev = waypoint
@@ -98,6 +106,9 @@ class GetRealtimeInfo(Resource):
             response[0].append([geo["longitude"], geo["latitude"]])
             response[1].append(time)
             return response
+        elif w_cur is not None:
+            geo = self.data[w_cur["haltenummer"]]["geoCoordinaat"]
+            return [[geo["longitude"], geo["latitude"]]]
         else:
             return None
     
@@ -110,37 +121,43 @@ class GetRealtimeInfo(Resource):
         for bus in real_time_data["ritDoorkomsten"]:
             waypoints = self._find_stops(bus)
             if waypoints is not None:
-                # lon1 = waypoints[0][0][0]
-                # lat1 = waypoints[0][0][1]
-                # lon2 = waypoints[0][1][0]
-                # lat2 = waypoints[0][1][1]
+                if len(waypoints) == 1:
+                    self.busses.append({"ritnummer": bus["ritnummer"], "geoCoordinaat": {"longitude": waypoints[0][0], "latitude": waypoints[0][1]}})
+                else:
+                    # lon1 = waypoints[0][0][0]
+                    # lat1 = waypoints[0][0][1]
+                    # lon2 = waypoints[0][1][0]
+                    # lat2 = waypoints[0][1][1]
 
-                route = json.loads(self._get_routing(waypoints[0]))
-                routing = route["features"][0]["properties"]["segments"][0]
+                    route = json.loads(self._get_routing(waypoints[0]))
+                    routing = route["features"][0]["properties"]["segments"][0]
 
-                delta = waypoints[1][1] - waypoints[1][0]
-                perc = (datetime.datetime.now() - waypoints[1][0])/delta
-                distance = perc * routing["distance"]
-                way_points = None
-                for segment in routing["steps"]:
-                    distance -= segment["distance"]
-                    if distance <= 0:
-                        way_points = segment["way_points"]
-                        break
+                    delta = waypoints[1][1] - waypoints[1][0]
+                    if delta == 0:
+                        perc = 1
+                    else:
+                        perc = (datetime.datetime.now() - waypoints[1][0])/delta
+                    distance = perc * routing["distance"]
+                    way_points = None
+                    for segment in routing["steps"]:
+                        distance -= segment["distance"]
+                        if distance <= 0:
+                            way_points = segment["way_points"]
+                            break
 
-                routing = route["features"][0]
-                point1 = routing["geometry"]["coordinates"][int(way_points[0])]
-                point2 = routing["geometry"]["coordinates"][int(way_points[1])]
+                    routing = route["features"][0]
+                    point1 = routing["geometry"]["coordinates"][int(way_points[0])]
+                    point2 = routing["geometry"]["coordinates"][int(way_points[1])]
 
-                lon1 = point1[0]
-                lat1 = point1[1]
-                lon2 = point2[0]
-                lat2 = point2[1]
+                    lon1 = point1[0]
+                    lat1 = point1[1]
+                    lon2 = point2[0]
+                    lat2 = point2[1]
 
-                delta_lon = perc * (lon2 - lon1)
-                delta_lat = perc * (lat2 - lat1)
+                    delta_lon = perc * (lon2 - lon1)
+                    delta_lat = perc * (lat2 - lat1)
 
-                self.busses.append({"ritnummer": bus["ritnummer"], "geoCoordinaat": [lon1 + delta_lon, lat1 + delta_lat]})
+                    self.busses.append({"ritnummer": bus["ritnummer"], "geoCoordinaat": {"longitude": lon1 + delta_lon, "latitude": lat1 + delta_lat}})
 
 
     def get(self, entiteitnummer, lijnnummer, richting):

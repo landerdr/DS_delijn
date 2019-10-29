@@ -1,6 +1,7 @@
 $(document).ready(function () {
     let map = L.map("map").setView([51.1876767, 4.4072676], 10);
     let stopsLayer = L.layerGroup().addTo(map);
+    let busLayer = L.layerGroup().addTo(map);
 
     L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png", {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -34,6 +35,7 @@ $(document).ready(function () {
 
     $("select").on("change", function () {
         stopsLayer.clearLayers();
+        busLayer.clearLayers();
         let num = $("option:selected", this).attr("num");
         let entity = $("option:selected", this).attr("entity");
         let direction = $("option:selected", this).attr("direction");
@@ -45,7 +47,7 @@ $(document).ready(function () {
                         .bindPopup(`Halte: ${halte.omschrijving}\nWeer: ${halte.weather.weather[0].main}`);
                 });
                 response["busses"].forEach(bus => {
-                    L.marker([bus.geoCoordinaat[1], bus.geoCoordinaat[0]], {icon: busIcon}).addTo(stopsLayer)
+                    L.marker([bus.geoCoordinaat.latitude, bus.geoCoordinaat.longitude], {icon: busIcon}).addTo(busLayer)
                         .bindPopup(`Bus: ${bus.ritnummer}`);
                 });
             },
@@ -57,6 +59,7 @@ $(document).ready(function () {
 
     $("select").on("loaded.bs.select", function() {
         stopsLayer.clearLayers();
+        busLayer.clearLayers();
         let num = $("option:selected", this).attr("num");
         let entity = $("option:selected", this).attr("entity");
         let direction = $("option:selected", this).attr("direction");
@@ -68,7 +71,7 @@ $(document).ready(function () {
                         .bindPopup(`Halte: ${halte.omschrijving}\nWeer: ${halte.weather.weather[0].main}`);
                 });
                 response["busses"].forEach(bus => {
-                    L.marker([bus.geoCoordinaat[1], bus.geoCoordinaat[0]], {icon: busIcon}).addTo(stopsLayer)
+                    L.marker([bus.geoCoordinaat.latitude, bus.geoCoordinaat.longitude], {icon: busIcon}).addTo(busLayer)
                         .bindPopup(`Bus: ${bus.ritnummer}`);
                 });
             },
