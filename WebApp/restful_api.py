@@ -56,7 +56,7 @@ class GetHandledStops(Resource):
 
 
 class GetRealtimeInfo(Resource):
-    def _get_weather(self, lon, lat):
+    def _get_weather(self, lat, lon):
         return open_weather_requests().get("/weather?lat=%s&lon=%s" %(lat, lon))
 
     def _get_stops(self, entiteitnummer, lijnnummer, richting):
@@ -67,27 +67,34 @@ class GetRealtimeInfo(Resource):
         for halte in self.haltes:
             halte.pop("links")
             halte.pop("gemeentenummer")
-            # halte["weather"] = self._get_weather(halte["geoCoordinaat"]["latitude"], halte["geoCoordinaat"]["longitude"])
+            halte["weather"] = self._get_weather(halte["geoCoordinaat"]["latitude"], halte["geoCoordinaat"]["longitude"])
             self.data[halte["haltenummer"]] = halte
 
     def _find_stops(self, data):
-        i = 0
+        w_cur = None
+        w_prev = None
         time = None
         prev = None
         for waypoint in data["doorkomsten"]:
-            time = datetime.datetime.strptime(waypoint["dienstregelingTijdstip"], "%Y-%m-%dT%H:%M:%S")
-            if time >= datetime.datetime.now():
-                break
-            prev = time
-            i += 1
-        if i > 0 and i < len(data["doorkomsten"]):
+            w_cur = waypoint
+            if "dienstregelingTijdstip" in waypoint:
+                if "real-timeTijdstip" in waypoint:
+                    time = datetime.datetime.strptime(waypoint["real-timeTijdstip"], "%Y-%m-%dT%H:%M:%S")
+                else:
+                    time = datetime.datetime.strptime(waypoint["dienstregelingTijdstip"], "%Y-%m-%dT%H:%M:%S")
+                if time >= datetime.datetime.now():
+                    break
+                prev = time
+                w_prev = waypoint
+
+        if w_prev is not None and w_prev != w_cur:
             response = [[], []]
             # Stop 1
-            geo = self.data[data["doorkomsten"][i-1]["haltenummer"]]["geoCoordinaat"]
+            geo = self.data[w_prev["haltenummer"]]["geoCoordinaat"]
             response[0].append([geo["longitude"], geo["latitude"]])
             response[1].append(prev)
             # Stop 2
-            geo = self.data[data["doorkomsten"][i]["haltenummer"]]["geoCoordinaat"]
+            geo = self.data[w_cur["haltenummer"]]["geoCoordinaat"]
             response[0].append([geo["longitude"], geo["latitude"]])
             response[1].append(time)
             return response
@@ -98,8 +105,8 @@ class GetRealtimeInfo(Resource):
         return open_maps_request().post("/v2/directions/driving-car/geojson", {"coordinates": waypoints})
 
     def _get_bus_locations(self, entiteitnummer, lijnnummer, richting):
-        real_time_data = dl_request().get("/lijnen/%d/%d/lijnrichtingen/%s/real-time" % (entiteitnummer, lijnnummer, richting))
         self.busses = []
+        real_time_data = dl_request().get("/lijnen/%d/%d/lijnrichtingen/%s/real-time" % (entiteitnummer, lijnnummer, richting))
         for bus in real_time_data["ritDoorkomsten"]:
             waypoints = self._find_stops(bus)
             if waypoints is not None:
