@@ -42,20 +42,18 @@
 </head>
 
 <body>
-    <div class="container-fluid" style="height: 100%;">
-        <div id="map" class="col-10 map"></div>
-        <div class="pull-right">
-            <form class="col-2">
-                <div class="form-group row">
-                    <select class="form-control selectpicker" id="select-line" data-live-search="true">
-                        {% for line in lines['lijnen'] %}
-                        <option entity="{{line['entiteitnummer']}}" num="{{line['lijnnummer']}}" direction="{{line['richting']}}">
-                            {{ line['lijnnummerPubliek'] }} - {{ line['omschrijving'] }}
-                        </option>
-                        {% endfor %}
-                </div>
-            </form>
-        </div>
+    <div class="row" style="height: 100%;">
+        <div id="map" class="col-8 map"></div>
+        <form class="col-4">
+            <div class="form-group row">
+                <select class="form-control selectpicker" id="select-line" data-live-search="true">
+                    {% for line in lines['lijnen'] %}
+                    <option entity="{{line['entiteitnummer']}}" num="{{line['lijnnummer']}}" direction="{{line['richting']}}">
+                        {{ line['lijnnummerPubliek'] }} - {{ line['omschrijving'] }}
+                    </option>
+                    {% endfor %}
+            </div>
+        </form>
     </div>
 </body>
 
