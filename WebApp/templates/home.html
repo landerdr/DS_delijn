@@ -42,9 +42,12 @@
 </head>
 
 <body>
-    <div class="row" style="height: 100%;">
+    <div class="container-fluid row" style="height: 100%;">
         <div id="map" class="col-8 map"></div>
-        <form class="col-4">
+        <div class="col-1">
+            <button type="button" class="btn btn-light" id="bus-reload">reload</button>
+        </div>
+        <form class="col-3">
             <div class="form-group row">
                 <select class="form-control selectpicker" id="select-line" data-live-search="true">
                     {% for line in lines['lijnen'] %}

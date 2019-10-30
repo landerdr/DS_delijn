@@ -80,4 +80,23 @@ $(document).ready(function () {
             }
         });
     });
+
+    $("#bus-reload").on("click", function() {
+        busLayer.clearLayers();
+        let num = $("#select-line :selected").attr("num");
+        let entity = $("#select-line :selected").attr("entity");
+        let direction = $("#select-line :selected").attr("direction");
+        $.ajax({
+            url: `/api/update/${entity}/${num}/${direction}`,
+            success: function (response) {
+                response["busses"].forEach(bus => {
+                    L.marker([bus.geoCoordinaat.latitude, bus.geoCoordinaat.longitude], {icon: busIcon}).addTo(busLayer)
+                        .bindPopup(`Bus: ${bus.ritnummer}`);
+                });
+            },
+            error: function (error) {
+                console.log(error);
+            }
+        });
+    });
 });
