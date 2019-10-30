@@ -29,6 +29,7 @@ api.add_resource(restful_api.GetHandledStops, "/api/stops/<int:entiteitnummer>/<
 api.add_resource(restful_api.test, "/api/test/<int:entiteitnummer>/<int:lijnnummer>/<string:richting>")
 api.add_resource(restful_api.test2, "/api/test2/<int:entiteitnummer>/<int:lijnnummer>/<string:richting>")
 api.add_resource(restful_api.GetRealtimeInfo, "/api/real-time/<int:entiteitnummer>/<int:lijnnummer>/<string:richting>")
+api.add_resource(restful_api.GetBusUpdate, "/api/update/<int:entiteitnummer>/<int:lijnnummer>/<string:richting>")
 api.add_resource(restful_api.GetRoute, "/api/routing/<int:entiteitnummer>/<int:lijnnummer>/<string:richting>")
 
 if __name__ == "__main__":

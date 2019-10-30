@@ -15,7 +15,7 @@ class GetAllLines(Resource):
         public_line = {}
         for line in lines:
             key = "%s_%s" % (line["entiteitnummer"], line["lijnnummer"])
-            public_line[key] = line["lijnnummerPubliek"]
+            public_line[key] = {"lijnnummerPubliek": line["lijnnummerPubliek"], "vervoertype": line["vervoertype"]}
             args.append(key)
 
         for i in range(0, (len(args)//10) + 1):
@@ -25,7 +25,8 @@ class GetAllLines(Resource):
                 for line in lines["lijnrichtingen"]:
                     key = "%s_%s" % (
                         line["entiteitnummer"], line["lijnnummer"])
-                    line["lijnnummerPubliek"] = public_line[key]
+                    line["lijnnummerPubliek"] = public_line[key]["lijnnummerPubliek"]
+                    line["vervoertype"] = public_line[key]["vervoertype"]
                     line.pop("links")
                     response["lijnen"].append(line)
 
@@ -36,6 +37,7 @@ class GetAllLines(Resource):
 
 print("Start caching all lines")
 cache["all_lines"] = GetAllLines()._getLines()
+cache["locations"] = {}
 print("Done caching!")
 
 
@@ -62,13 +64,17 @@ class GetHandledStops(Resource):
 
         return {"haltes": haltes}
 
+class GetBusUpdate(Resource):
+    def get(self, entiteitnummer, lijnnummer, richting):
+        o = GetRealtimeInfo()
+        o._get_bus_locations(entiteitnummer, lijnnummer, richting)
+        return {"busses": o.busses}
 
 class GetRealtimeInfo(Resource):
     def _get_weather(self, lat, lon):
         return open_weather_requests().get("/weather?lat=%s&lon=%s" %(lat, lon))
 
     def _get_stops(self, entiteitnummer, lijnnummer, richting):
-        self.data = {}
         self.haltes = dl_request().get("/lijnen/%d/%d/lijnrichtingen/%s/haltes" %
                                   (entiteitnummer, lijnnummer, richting))["haltes"]
 
@@ -76,9 +82,12 @@ class GetRealtimeInfo(Resource):
             halte.pop("links")
             halte.pop("gemeentenummer")
             halte["weather"] = self._get_weather(halte["geoCoordinaat"]["latitude"], halte["geoCoordinaat"]["longitude"])
-            self.data[halte["haltenummer"]] = halte
+            key = "%s_%s" %(halte["entiteitnummer"], halte["haltenummer"])
+            # print(key)
+            if key not in cache["locations"]:
+                cache["locations"][key] = {"latitude": halte["geoCoordinaat"]["latitude"], "longitude": halte["geoCoordinaat"]["longitude"]}
 
-    def _find_stops(self, data):
+    def _find_stops(self, entiteitnummer, data):
         w_cur = None
         w_prev = None
         time = None
@@ -98,16 +107,19 @@ class GetRealtimeInfo(Resource):
         if w_prev is not None and w_prev != w_cur:
             response = [[], []]
             # Stop 1
-            geo = self.data[w_prev["haltenummer"]]["geoCoordinaat"]
+            key = "%s_%s" %(entiteitnummer, w_prev["haltenummer"])
+            geo = cache["locations"][key]
             response[0].append([geo["longitude"], geo["latitude"]])
             response[1].append(prev)
             # Stop 2
-            geo = self.data[w_cur["haltenummer"]]["geoCoordinaat"]
+            key = "%s_%s" %(entiteitnummer, w_cur["haltenummer"])
+            geo = cache["locations"][key]
             response[0].append([geo["longitude"], geo["latitude"]])
             response[1].append(time)
             return response
         elif w_cur is not None:
-            geo = self.data[w_cur["haltenummer"]]["geoCoordinaat"]
+            key = "%s_%s" %(entiteitnummer, w_cur["haltenummer"])
+            geo = cache["locations"][key]
             return [[geo["longitude"], geo["latitude"]]]
         else:
             return None
@@ -119,7 +131,7 @@ class GetRealtimeInfo(Resource):
         self.busses = []
         real_time_data = dl_request().get("/lijnen/%d/%d/lijnrichtingen/%s/real-time" % (entiteitnummer, lijnnummer, richting))
         for bus in real_time_data["ritDoorkomsten"]:
-            waypoints = self._find_stops(bus)
+            waypoints = self._find_stops(entiteitnummer, bus)
             if waypoints is not None:
                 if len(waypoints) == 1:
                     self.busses.append({"ritnummer": bus["ritnummer"], "geoCoordinaat": {"longitude": waypoints[0][0], "latitude": waypoints[0][1]}})
@@ -142,6 +154,7 @@ class GetRealtimeInfo(Resource):
                     for segment in routing["steps"]:
                         distance -= segment["distance"]
                         if distance <= 0:
+                            perc = (segment["distance"] + distance) / segment["distance"]
                             way_points = segment["way_points"]
                             break
 
