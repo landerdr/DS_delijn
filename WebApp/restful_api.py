@@ -3,12 +3,31 @@ from flask_restful import Resource, reqparse, abort
 from dl_requests import dl_request, open_maps_request, open_weather_requests
 import re
 import datetime
-
-# @https://data.delijn.be/docs/services/KernOpenDataServicesV1/operations/geefLijnen
+import sys
 
 cache = {}
 
+toolbar_width = 40
+loading_percentage = 0
+def init_loading():
+    # setup toolbar
+    sys.stdout.write("[%s]" % (" " * toolbar_width))
+    sys.stdout.flush()
+    sys.stdout.write("\b" * (toolbar_width+1)) # return to start of line, after '['
 
+def progress_loading(i, total):
+    global loading_percentage
+    progress = int(toolbar_width*i/total)
+    for _ in range(progress - loading_percentage):
+        # update the bar
+        sys.stdout.write("-")
+        sys.stdout.flush()
+    loading_percentage = progress
+
+def complete_loading():
+    global loading_percentage
+    loading_percentage = 0
+    sys.stdout.write("]\n") # this ends the progress bar
 
 class GetAllLines(Resource):
     def _getLines(self):
@@ -22,6 +41,7 @@ class GetAllLines(Resource):
             args.append(key)
 
         for i in range(0, (len(args)//10) + 1):
+            progress_loading(i, len(args)//10)
             all_data = dl_request().get("/lijnen/lijst/%s/lijnrichtingen" %
                                         ("_".join(args[10*i:min(10*(i+1), len(args))])))
             for lines in all_data["lijnLijnrichtingen"]:
@@ -39,7 +59,9 @@ class GetAllLines(Resource):
         return cache["all_lines"]
 
 print("Start caching all lines")
+init_loading()
 cache["all_lines"] = GetAllLines()._getLines()
+complete_loading()
 cache["stops"] = {}
 cache["schedules"] = {}
 print("Done caching!")
@@ -172,6 +194,8 @@ class GetRealtimeInfo(Resource):
     def _get_bus_locations(self, entiteitnummer, lijnnummer, richting):
         self.busses = []
         real_time_data = dl_request().get("/lijnen/%d/%d/lijnrichtingen/%s/real-time" % (entiteitnummer, lijnnummer, richting))
+        if real_time_data is None:
+            return None, 204
         self.test = real_time_data
         for bus in real_time_data["ritDoorkomsten"]:
             waypoints = self._find_stops(bus)
