@@ -40,7 +40,9 @@ function onClick(e) {
         success: function (response) {
             document.getElementById("stop-info").innerHTML = 
             `<h3> ${response.omschrijving} </h3>
+            <img src="http://openweathermap.org/img/wn/${response.weather.weather[0].icon}@2x.png">
             <h6> ${response.weather.weather[0].main}: ${response.weather.weather[0].description} </h6>
+            <h6> Temperature: ${(response.weather.main.temp - 273).toFixed(2)}°C </h6>
             `;
         },
         error: function (error) {

@@ -6,7 +6,7 @@ app = Flask(__name__)
 api = Api(app)
 app.config['BABEL_DEFAULT_LOCALE'] = 'en'
 app.config['TEMPLATES_AUTO_RELOAD'] = True
-app.secret_key = "abcdefgsecretkey123420"
+app.secret_key = "987654321123456789_help"
 app_data = dict()
 
 ## Custom error ##
