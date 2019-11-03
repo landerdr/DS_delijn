@@ -23,12 +23,14 @@ def home():
     lines = restful_api.GetAllLines().get()
     return render_template("home.html", lines=lines)
 
-api.add_resource(restful_api.GetAllLines, "/api/alllines")
+@app.route("/manual")
+def manual():
+    return render_template("endpoints.html")
+
+api.add_resource(restful_api.GetAllLines, "/api/all-lines")
 api.add_resource(restful_api.GetLineInfo, "/api/line/<int:entiteitnummer>/<int:lijnnummer>")
 api.add_resource(restful_api.GetHandledStops, "/api/stops/<int:entiteitnummer>/<int:lijnnummer>/<string:richting>")
-# api.add_resource(restful_api.test, "/api/test/<int:entiteitnummer>/<int:lijnnummer>/<string:richting>")
-# api.add_resource(restful_api.test2, "/api/test2/<int:entiteitnummer>/<int:lijnnummer>/<string:richting>")
-api.add_resource(restful_api.GetStopInformation, "/api/halte/<int:entiteitnummer>/<int:haltenummer>")
+api.add_resource(restful_api.GetStopInformation, "/api/stop/<int:entiteitnummer>/<int:haltenummer>")
 api.add_resource(restful_api.GetRealtimeInfo, "/api/real-time/<int:entiteitnummer>/<int:lijnnummer>/<string:richting>")
 api.add_resource(restful_api.GetBusUpdate, "/api/update/<int:entiteitnummer>/<int:lijnnummer>/<string:richting>")
 api.add_resource(restful_api.GetRoute, "/api/routing/<int:entiteitnummer>/<int:lijnnummer>/<string:richting>")
