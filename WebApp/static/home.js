@@ -8,7 +8,10 @@ function load() {
     let num = $("option:selected", this).attr("num");
     let entity = $("option:selected", this).attr("entity");
     let direction = $("option:selected", this).attr("direction");
-    document.getElementById("line-info").innerHTML = `<h3>${num} ${entity} ${direction}</h3>`;
+
+    let public = $("option:selected", this).val().split(" - ");
+    let text = public.splice(1);
+    document.getElementById("line-info").innerHTML = `<h3><span class="badge badge-secondary">${public}</span> ${text.join(" - ")}</h3>`;
     $.ajax({
         url: `/api/real-time/${entity}/${num}/${direction}`,
         success: function (response) {
@@ -36,7 +39,7 @@ function onClick(e) {
     let hentity = e.target.options.entity;
     let hnum = e.target.options.haltenr;
     $.ajax({
-        url: `/api/halte/${hentity}/${hnum}`,
+        url: `/api/stop/${hentity}/${hnum}`,
         success: function (response) {
             document.getElementById("stop-info").innerHTML = 
             `<h3> ${response.omschrijving} </h3>

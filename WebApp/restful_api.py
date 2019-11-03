@@ -43,32 +43,7 @@ cache["all_lines"] = GetAllLines()._getLines()
 complete_loading()
 cache["stops"] = {}
 cache["lines"] = {}
-# cache["schedules"] = {}
 print("Done caching!")
-
-# def GetSchedule(entiteitnummer, lijnnummer, richting):
-#     key = "%d_%d_%s" %(int(entiteitnummer), int(lijnnummer), richting)
-#     if key in cache["schedules"]:
-#         return cache["schedules"][key]
-
-#     return dl_request().get("/lijnen/%d/%d/lijnrichtingen/%s/dienstregelingen" %(int(entiteitnummer), int(lijnnummer), richting))
-
-
-
-
-# class test(Resource):
-#     def get(self, entiteitnummer, lijnnummer, richting):
-#         response = dl_request().get("/lijnen/%d/%d/lijnrichtingen/%s/dienstregelingen" %(entiteitnummer, lijnnummer, richting))
-#         if response is not None:
-#             return response
-#         return None, 204
-
-# class test2(Resource):
-#     def get(self, entiteitnummer, lijnnummer, richting):
-#         response = dl_request().get("/lijnen/%d/%d/lijnrichtingen/%s/real-time" %(entiteitnummer, lijnnummer, richting))
-#         if response is not None:
-#             return response
-#         return None, 204
 
 class GetLineInfo(Resource):
     def get(self, entiteitnummer, lijnnummer):
@@ -86,7 +61,7 @@ class GetHandledStops(Resource):
         return None, 204
 
 class GetStopInformation(Resource):
-    def get(self, entiteitnummer, haltenummer):
+    def _get(self, entiteitnummer, haltenummer):
         key = "%s_%s" %(entiteitnummer, haltenummer)
         halte = {}
         if key in cache["stops"]:
@@ -97,9 +72,14 @@ class GetStopInformation(Resource):
                 return None
             halte.pop("links")
             cache["stops"][key] = halte
+        return halte
+
+    def get(self, entiteitnummer, haltenummer):
+        halte = self._get(entiteitnummer, haltenummer)
+        if halte is None:
+            return None, 204
 
         halte["weather"] = GetRealtimeInfo()._get_weather(halte["geoCoordinaat"]["latitude"], halte["geoCoordinaat"]["longitude"])
-
         return halte
 
 
@@ -124,7 +104,9 @@ class GetRealtimeInfo(Resource):
             return None, 204
         self.haltes = response["haltes"]
         for halte in self.haltes:
-            halte.pop("links")
+            halte.pop("links")          # Useless data
+            halte.pop("gemeentenummer") # Always -1
+            halte.pop("hoofdHalte")     # Alway null
             key = "%s_%s" %(halte["entiteitnummer"], halte["haltenummer"])
             if key not in cache["stops"]:
                 cache["stops"][key] = halte
@@ -168,13 +150,17 @@ class GetRealtimeInfo(Resource):
             response = [[], []]
             # Stop 1
             ent = int(re.split("/", w_prev["links"][0]["url"])[-2])
-            geo = GetStopInformation().get(ent, w_prev["haltenummer"])["geoCoordinaat"]
-            response[0].append([geo["longitude"], geo["latitude"]])
+            resp = GetStopInformation()._get(ent, w_prev["haltenummer"])
+            if resp is None:
+                return None
+            response[0].append([resp["geoCoordinaat"]["longitude"], resp["geoCoordinaat"]["latitude"]])
             response[1].append(prev)
             # Stop 2
             ent = int(re.split("/", w_cur["links"][0]["url"])[-2])
-            geo = GetStopInformation().get(ent, w_cur["haltenummer"])["geoCoordinaat"]
-            response[0].append([geo["longitude"], geo["latitude"]])
+            resp = GetStopInformation()._get(ent, w_cur["haltenummer"])
+            if resp is None:
+                return None
+            response[0].append([resp["geoCoordinaat"]["longitude"], resp["geoCoordinaat"]["latitude"]])
             response[1].append(time)
             return response
         elif w_cur is not None:
@@ -186,17 +172,23 @@ class GetRealtimeInfo(Resource):
                 w_prev = stop
             # If none gets found, return next stop
             if w_prev is None or time < datetime.datetime.now() or w_prev == cache["lines"][key][-1]:
-                geo = GetStopInformation().get(ent, w_cur["haltenummer"])["geoCoordinaat"]
-                return [[geo["longitude"], geo["latitude"]]]
+                resp = GetStopInformation()._get(ent, w_cur["haltenummer"])
+                if resp is None:
+                    return None
+                return [[resp["geoCoordinaat"]["longitude"], resp["geoCoordinaat"]["latitude"]]]
             # Return both stops
             response = [[], []]
             # Looked up stop 1
-            geo = GetStopInformation().get(w_prev[0], w_prev[1])["geoCoordinaat"]
-            response[0].append([geo["longitude"], geo["latitude"]])
+            resp = GetStopInformation()._get(w_prev[0], w_prev[1])
+            if resp is None:
+                return None
+            response[0].append([resp["geoCoordinaat"]["longitude"], resp["geoCoordinaat"]["latitude"]])
             response[1].append(datetime.datetime.now() - datetime.timedelta(minutes=1))
             # Stop 2
-            geo = GetStopInformation().get(ent, w_cur["haltenummer"])["geoCoordinaat"]
-            response[0].append([geo["longitude"], geo["latitude"]])
+            resp = GetStopInformation()._get(ent, w_cur["haltenummer"])
+            if resp is None:
+                return None
+            response[0].append([resp["geoCoordinaat"]["longitude"], resp["geoCoordinaat"]["latitude"]])
             response[1].append(time)
             return response
         else:
@@ -211,8 +203,6 @@ class GetRealtimeInfo(Resource):
         real_time_data = dl_request().get("/lijnen/%d/%d/lijnrichtingen/%s/real-time" % (entiteitnummer, lijnnummer, richting))
         if real_time_data is None:
             return None, 204
-        # Test reasons
-        self.test = real_time_data
         # Sort busses so the one with the most stops gets handled first
         busses = sorted(real_time_data["ritDoorkomsten"], key=lambda k: len(k["doorkomsten"]), reverse=True)
         for bus in busses:
@@ -272,7 +262,7 @@ class GetRealtimeInfo(Resource):
         s, _ = self._get_bus_locations(entiteitnummer, lijnnummer, richting)
         if s is None:
             return None, 204
-        return {"haltes": self.haltes, "busses": self.busses, "test": self.test}
+        return {"haltes": self.haltes, "busses": self.busses}
 
 class GetRoute(Resource):
     def get(self, entiteitnummer, lijnnummer, richting):
