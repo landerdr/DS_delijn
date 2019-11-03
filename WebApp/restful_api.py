@@ -42,6 +42,7 @@ init_loading()
 cache["all_lines"] = GetAllLines()._getLines()
 complete_loading()
 cache["stops"] = {}
+cache["lines"] = {}
 # cache["schedules"] = {}
 print("Done caching!")
 
@@ -93,7 +94,7 @@ class GetStopInformation(Resource):
         else:
             halte = dl_request().get("/haltes/%d/%d" %(int(entiteitnummer), int(haltenummer)))
             if halte is None:
-                return halte
+                return None
             halte.pop("links")
             cache["stops"][key] = halte
 
@@ -135,14 +136,25 @@ class GetRealtimeInfo(Resource):
 
         return True, 200
 
-    def _find_stops(self, data):
+    def _find_stops(self, data, entiteitnummer, lijnnummer, richting):
+        # Create unique line key
+        key = "%d_%d_%s" %(int(entiteitnummer), int(lijnnummer), richting)
+        # Create chache of ordered stops
+        if key not in cache["lines"] or (key in cache["lines"] and len(data["doorkomsten"]) > len(cache["lines"][key])):
+            stops = []
+            for stop in data["doorkomsten"]:
+                ent = int(re.split("/", stop["links"][0]["url"])[-2])
+                stops.append((ent, stop["haltenummer"]))
+            cache["lines"][key] = stops
+
+        # Search for stops
         w_cur = None
         w_prev = None
         time = None
         prev = None
         for waypoint in data["doorkomsten"]:
-            w_cur = waypoint
             if "dienstregelingTijdstip" in waypoint:
+                w_cur = waypoint
                 if "real-timeTijdstip" in waypoint:
                     time = datetime.datetime.strptime(waypoint["real-timeTijdstip"], "%Y-%m-%dT%H:%M:%S")
                 else:
@@ -155,20 +167,38 @@ class GetRealtimeInfo(Resource):
         if w_prev is not None and w_prev["haltenummer"] != w_cur["haltenummer"]:
             response = [[], []]
             # Stop 1
-            entiteitnummer = int(re.split("/", w_prev["links"][0]["url"])[-2])
-            geo = GetStopInformation().get(entiteitnummer, w_prev["haltenummer"])["geoCoordinaat"]
+            ent = int(re.split("/", w_prev["links"][0]["url"])[-2])
+            geo = GetStopInformation().get(ent, w_prev["haltenummer"])["geoCoordinaat"]
             response[0].append([geo["longitude"], geo["latitude"]])
             response[1].append(prev)
             # Stop 2
-            entiteitnummer = int(re.split("/", w_cur["links"][0]["url"])[-2])
-            geo = GetStopInformation().get(entiteitnummer, w_cur["haltenummer"])["geoCoordinaat"]
+            ent = int(re.split("/", w_cur["links"][0]["url"])[-2])
+            geo = GetStopInformation().get(ent, w_cur["haltenummer"])["geoCoordinaat"]
             response[0].append([geo["longitude"], geo["latitude"]])
             response[1].append(time)
             return response
         elif w_cur is not None:
-            entiteitnummer = int(re.split("/", w_cur["links"][0]["url"])[-2])
-            geo = GetStopInformation().get(entiteitnummer, w_cur["haltenummer"])["geoCoordinaat"]
-            return [[geo["longitude"], geo["latitude"]]]
+            # Looks for prev stop in cache
+            ent = int(re.split("/", w_cur["links"][0]["url"])[-2])
+            for stop in cache["lines"][key]:
+                if stop[0] == ent and stop[1] == w_cur["haltenummer"]:
+                    break
+                w_prev = stop
+            # If none gets found, return next stop
+            if w_prev is None or time < datetime.datetime.now() or w_prev == cache["lines"][key][-1]:
+                geo = GetStopInformation().get(ent, w_cur["haltenummer"])["geoCoordinaat"]
+                return [[geo["longitude"], geo["latitude"]]]
+            # Return both stops
+            response = [[], []]
+            # Looked up stop 1
+            geo = GetStopInformation().get(w_prev[0], w_prev[1])["geoCoordinaat"]
+            response[0].append([geo["longitude"], geo["latitude"]])
+            response[1].append(datetime.datetime.now() - datetime.timedelta(minutes=1))
+            # Stop 2
+            geo = GetStopInformation().get(ent, w_cur["haltenummer"])["geoCoordinaat"]
+            response[0].append([geo["longitude"], geo["latitude"]])
+            response[1].append(time)
+            return response
         else:
             return None
 
@@ -177,20 +207,26 @@ class GetRealtimeInfo(Resource):
 
     def _get_bus_locations(self, entiteitnummer, lijnnummer, richting):
         self.busses = []
+        # Request real-time data from DL
         real_time_data = dl_request().get("/lijnen/%d/%d/lijnrichtingen/%s/real-time" % (entiteitnummer, lijnnummer, richting))
         if real_time_data is None:
             return None, 204
+        # Test reasons
         self.test = real_time_data
-        for bus in real_time_data["ritDoorkomsten"]:
-            waypoints = self._find_stops(bus)
+        # Sort busses so the one with the most stops gets handled first
+        busses = sorted(real_time_data["ritDoorkomsten"], key=lambda k: len(k["doorkomsten"]), reverse=True)
+        for bus in busses:
+            waypoints = self._find_stops(bus, entiteitnummer, lijnnummer, richting)
             if waypoints is not None:
                 if len(waypoints) == 1:
                     self.busses.append({"ritnummer": bus["ritnummer"], "geoCoordinaat": {"longitude": waypoints[0][0], "latitude": waypoints[0][1]}})
                 else:
                     # Requests routing
-                    route = json.loads(self._get_routing(waypoints[0]))
-                    if route is None:
+                    response = self._get_routing(waypoints[0])
+                    if response is None:
                         return None, 204
+                    route = json.loads(response)
+                    
 
                     # Calculate percentage traveled by time
                     if waypoints[1][1] == waypoints[1][0]:
