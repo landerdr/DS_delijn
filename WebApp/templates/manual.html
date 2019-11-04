@@ -47,8 +47,8 @@
             worth spending too much time on.</p>
         <p>The location from the busses gets calculated using the route between the stops the bus has just passed and
             the next stop. However sometimes the route that gets calculated by the routing provider isn't correct, since
-            the coordinates from the stops aren't on the road, it sometimes guesses the worng road to drive on. Also
-            metros will now follow the road, while in reality they don't.</p>
+            it uses car routing and since the coordinates from the stops aren't on the road, it sometimes guesses the
+            worng road to drive on. Also metros will now follow the road, while in reality they don't.</p>
         <p>Another workaround we had to do was split the weather information from the real-time data call, since some
             lines have over 60 stops on their route, and the weather api only allows up to 60 calls a second. While it
             is possible to rate limit the call on our backend, this would mean implementing async functions. </p>
