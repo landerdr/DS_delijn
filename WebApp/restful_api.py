@@ -35,22 +35,29 @@ class GetAllLines(Resource):
         return response
 
     def get(self):
+        if "all_lines" not in cache:
+            print("Start caching all lines")
+            init_loading()
+            cache["all_lines"] = self._getLines()
+            complete_loading()
+            print("Done caching!")
         return cache["all_lines"]
 
-print("Start caching all lines")
-init_loading()
-cache["all_lines"] = GetAllLines()._getLines()
-complete_loading()
+#print("Start caching all lines")
+#init_loading()
+#cache["all_lines"] = GetAllLines()._getLines()
+#complete_loading()
 cache["stops"] = {}
 cache["lines"] = {}
-print("Done caching!")
+#print("Done caching!")
 
 class GetLineInfo(Resource):
     def get(self, entiteitnummer, lijnnummer):
         response = dl_request().get("/lijnen/%d/%d" % (entiteitnummer, lijnnummer))
-        if response is not None:
-            return response
-        return None, 204
+        if response is None:
+            return None, 204
+        response.pop("links")
+        return response
 
 class GetHandledStops(Resource):
     def get(self, entiteitnummer, lijnnummer, richting):
@@ -78,8 +85,13 @@ class GetStopInformation(Resource):
         halte = self._get(entiteitnummer, haltenummer)
         if halte is None:
             return None, 204
-
-        halte["weather"] = GetRealtimeInfo()._get_weather(halte["geoCoordinaat"]["latitude"], halte["geoCoordinaat"]["longitude"])
+        weather = GetRealtimeInfo()._get_weather(halte["geoCoordinaat"]["latitude"], halte["geoCoordinaat"]["longitude"])
+        if weather is None:
+            return None, 204
+        # Clean up weather object
+        weather.pop("cod")
+        weather.pop("coord")
+        halte["weather"] = weather
         return halte
 
 
