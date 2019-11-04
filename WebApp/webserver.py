@@ -12,20 +12,20 @@ app_data = dict()
 ## Custom error ##
 @app.errorhandler(404)
 def render_404(errormsg):
-    return errormsg
+    return redirect("/")
 
 @app.errorhandler(401)
 def render_401(errormsg):
     return errormsg
 
-@app.route("/")
+@app.route("/map")
 def home():
     lines = restful_api.GetAllLines().get()
     return render_template("home.html", lines=lines)
 
-@app.route("/manual")
+@app.route("/")
 def manual():
-    return render_template("endpoints.html")
+    return render_template("manual.html")
 
 api.add_resource(restful_api.GetAllLines, "/api/all-lines")
 api.add_resource(restful_api.GetLineInfo, "/api/line/<int:entiteitnummer>/<int:lijnnummer>")

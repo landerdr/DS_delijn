@@ -21,7 +21,40 @@
 
 <body>
     <div class="container">
-        <h1>API manual</h1>
+        <h1>Manual</h1>
+        <h2>Report</h2>
+        <p>We will clarify some of the design choices that were made during the development of this project. What we
+            notice immediately is that DeLijn is rather slow to return big datasets. To reduce the amount of wait time
+            that occurs we opted to implement a cache, this cache will store the response we get from DeLijn to speed up
+            our service. When the site gets accessed for the first time the api will request and cache all lines from
+            DeLijn, and their directions.</p>
+        <p>Since all api endpoints we use in the backgrounds have call limits, we need to carefully consider how we are
+            going to request data from them. So immutable data should get stored to remove redundant calls to these
+            services. Therefore, we cache the stops from DeLijn too, their geolocation and name don’t change. In
+            production this cache should be cleared occasionally but because this isn’t intended for a production
+            environment the periodic cache flush isn’t implemented. A possible improvement is to cache the route between
+            stops too, this doesn’t currently happen but would be an extra feature that would get implemented if I had
+            to continue working on this.</p>
+        <p>To correctly route the busses, we need real-time data from DeLijn, unfortunately the real-time data doesn’t
+            contain stops the busses are already past, so to correctly route the busses we need to get these another
+            way. Regrettably requesting the handled stops from a given line doesn’t return the stops in order, so we
+            can’t do anything with this either. What I ended up doing is cache the longest path that gets passed by the
+            real-time data, while this doesn’t always work (when only one bus drives on the line, we won’t be able to
+            guess its previous location until it passed the first stop) it works well in practice. A future possibility
+            would be to use the schedule, but requesting this schedule is slow (~7s), therefore we opted to use the
+            current method. A possible improvement would be to make the busses drive in “real-time” rather than a
+            refresh button, but since this is fully front end and doesn’t have to do with the api I decided this wasn’t
+            worth spending too much time on.</p>
+        <p>The location from the busses gets calculated using the route between the stops the bus has just passed and
+            the next stop. However sometimes the route that gets calculated by the routing provider isn't correct, since
+            the coordinates from the stops aren't on the road, it sometimes guesses the worng road to drive on. Also
+            metros will now follow the road, while in reality they don't.</p>
+        <p>Another workaround we had to do was split the weather information from the real-time data call, since some
+            lines have over 60 stops on their route, and the weather api only allows up to 60 calls a second. While it
+            is possible to rate limit the call on our backend, this would mean implementing async functions. </p>
+        <p>Eventually I decided to implement four endpoints, the server has more endpoints, but these were used for
+            testing and aren’t relevant. We will discuss all four endpoints that are actually being used now.</p>
+        <h2>API endpoints</h2>
         <div class="accordion" id="apis">
             <div class="card">
                 <div class="card-header" id="headingOne">
@@ -35,6 +68,9 @@
 
                 <div id="collapseOne" class="collapse show" aria-labelledby="headingOne" data-parent="#apis">
                     <div class="card-body">
+                        <div class="alert alert-secondary">
+                            This endpoints gets used to request all lines, it has minimal infromation.
+                        </div>
                         <pre><code>
     {
         "lijnen":
@@ -67,6 +103,10 @@
                 </div>
                 <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#apis">
                     <div class="card-body">
+                        <div class="alert alert-secondary">
+                            This endpoints gets used by the map to request all stops and current locations from the
+                            busses.
+                        </div>
                         <pre><code>
     {
         "haltes": 
@@ -114,8 +154,8 @@
             <div class="card">
                 <div class="card-header" id="headingThree">
                     <h2 class="mb-0">
-                        <button class="btn btn-link collapsed" type="button" data-toggle="collapse" data-target="#collapseThree"
-                            aria-expanded="false" aria-controls="collapseThree">
+                        <button class="btn btn-link collapsed" type="button" data-toggle="collapse"
+                            data-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
                             <span class="badge badge-info">GET</span>
                             /api/stop/&lt;int:entiteitnummer&gt;/&lt;int:haltenummer&gt;
                         </button>
@@ -123,6 +163,10 @@
                 </div>
                 <div id="collapseThree" class="collapse" aria-labelledby="headingThree" data-parent="#apis">
                     <div class="card-body">
+                        <div class="alert alert-secondary">
+                            This endpoint gets used to provide more information about a stop, if you click on a stop
+                            marker you'll get info like weather and temperature.
+                        </div>
                         <pre><code>
     {
         "entiteitnummer": string (int),
@@ -192,8 +236,8 @@
             <div class="card">
                 <div class="card-header" id="headingFour">
                     <h2 class="mb-0">
-                        <button class="btn btn-link collapsed" type="button" data-toggle="collapse" data-target="#collapseFour"
-                            aria-expanded="false" aria-controls="collapseFour">
+                        <button class="btn btn-link collapsed" type="button" data-toggle="collapse"
+                            data-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
                             <span class="badge badge-info">GET</span>
                             /api/update/&lt;int:entiteitnummer&gt;/&lt;int:lijnnummer&gt;/&lt;string:richting&gt;
                         </button>
@@ -201,6 +245,9 @@
                 </div>
                 <div id="collapseFour" class="collapse" aria-labelledby="headingFour" data-parent="#apis">
                     <div class="card-body">
+                        <div class="alert alert-secondary">
+                            This endpoint gets used to update the location of the busses.
+                        </div>
                         <pre><code>
     {
         "busses":
@@ -226,6 +273,29 @@
                 </div>
             </div>
         </div>
+
+        <hr>
+        <h2>Dependencies</h2>
+        <h3>Public transport data</h3>
+        <p>For the data on the public transport we use the api from DeLijn, which can be found <a
+                href="https://data.delijn.be">here</a>.</p>
+        <h3>Map</h3>
+        <p>The map is provided by <a href="https://openstreetmap.org/about">openstreetmap</a>, to display the map on the
+            site we used the <a href="https://leafletjs.com/">leaflet</a> plugin.</p>
+        <h3>Routing</h3>
+        <p>Routing gets handled by a public free routing provider, namely <a
+                href="https://openrouteservice.org/">openroutingservice</a>.</p>
+        <h3>Weather</h3>
+        <p>Weather data gets provided by <a href="https://openweathermap.org/">openweathermap</a>.</p>
+        <h3>Functional</h3>
+        <p>The backend is coded in Python v3.x, using the libraries Flask, Jinja2, Flask-restful and numpy.</p>
+        <p>The front end has been coded in HTML and JavaScript, we are using BootStrap v4 for the layout and the
+            libraries JQuery and leaflet for the functionality.</p>
+        <hr>
+
+        <h2>Continue to map</h2>
+        <p><i>be mindful that this will take a while on first visit since the api will cache all lines.</i></p>
+        <a class="btn btn-primary" href="/map">Continue to map.</a>
     </div>
 </body>
 
