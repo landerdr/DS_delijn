@@ -69,7 +69,8 @@
                 <div id="collapseOne" class="collapse show" aria-labelledby="headingOne" data-parent="#apis">
                     <div class="card-body">
                         <div class="alert alert-secondary">
-                            This endpoints gets used to request all lines, it has minimal infromation.
+                            Requests all lines from cache, if not in cache will redirect request to DeLijn and cache response.
+                            Returns following json structure.
                         </div>
                         <pre><code>
     {
@@ -104,8 +105,11 @@
                 <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#apis">
                     <div class="card-body">
                         <div class="alert alert-secondary">
+                            Requests real-time data from a line, with parameters: entiteitnummer, lijnnummer, richting. 
+                            Which can be obtained from previous endpoint.
                             This endpoints gets used by the map to request all stops and current locations from the
                             busses.
+                            It returns following json structure.
                         </div>
                         <pre><code>
     {
@@ -164,8 +168,11 @@
                 <div id="collapseThree" class="collapse" aria-labelledby="headingThree" data-parent="#apis">
                     <div class="card-body">
                         <div class="alert alert-secondary">
+                            Request stop data, with parameters: entiteitnummer, haltenummer.
                             This endpoint gets used to provide more information about a stop, if you click on a stop
                             marker you'll get info like weather and temperature.
+                            It returns following json structure.
+                            
                         </div>
                         <pre><code>
     {
@@ -246,7 +253,9 @@
                 <div id="collapseFour" class="collapse" aria-labelledby="headingFour" data-parent="#apis">
                     <div class="card-body">
                         <div class="alert alert-secondary">
-                            This endpoint gets used to update the location of the busses.
+                            Reauest location data from busses on a line with parameters: entiteitnummer, lijnnummer, richting
+                            This endpoint gets used to update the location of the busses when pressing the reload button.
+                            It returns following json structure.
                         </div>
                         <pre><code>
     {
